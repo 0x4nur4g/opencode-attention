@@ -1,0 +1,931 @@
+.ny-root {
+  --ny-border: var(--border-weak-base, rgba(128, 128, 128, 0.24));
+  --ny-surface: var(--surface-base, #181818);
+  --ny-raised: var(--surface-raised-base, #222222);
+  --ny-text: var(--text-base, #ededed);
+  --ny-muted: var(--text-weak, #9a9a9a);
+  --ny-danger: var(--text-danger, #bd303b);
+  --ny-danger-soft: var(--surface-danger, rgba(189, 48, 59, 0.13));
+  --ny-warning: var(--text-warning, #a76b00);
+  --ny-warning-soft: var(--surface-warning, rgba(167, 107, 0, 0.13));
+  color: var(--ny-text);
+  font: inherit;
+}
+
+.ny-root.ny-panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--ny-surface);
+}
+
+.ny-root.ny-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-base, inherit);
+  font: inherit;
+  white-space: nowrap;
+}
+
+.ny-root .ny-tab-badge {
+  display: inline-flex;
+  min-width: 18px;
+  height: 18px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ny-root .ny-tab-badge--blocking {
+  color: var(--text-on-danger, #fff);
+  background: var(--ny-danger);
+}
+
+.ny-root .ny-tab-badge--normal {
+  color: var(--text-on-warning, #fff);
+  background: var(--ny-warning);
+}
+
+.ny-root .ny-header {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--ny-border);
+  background: var(--ny-surface);
+}
+
+.ny-root .ny-header-top,
+.ny-root .ny-brand,
+.ny-root .ny-header-tools,
+.ny-root .ny-header-actions,
+.ny-root .ny-view-switch,
+.ny-root .ny-cross-copy,
+.ny-root .ny-inbox-toolbar,
+.ny-root .ny-stepper,
+.ny-root .ny-item-tags,
+.ny-root .ny-option-number,
+.ny-root .ny-message-meta,
+.ny-root .ny-message-actions,
+.ny-root .ny-live-activity,
+.ny-root .ny-chat-composer,
+.ny-root .ny-sent-heading,
+.ny-root .ny-sent-meta {
+  display: flex;
+  align-items: center;
+}
+
+.ny-root .ny-header-top {
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ny-root .ny-brand {
+  min-width: 0;
+  gap: 10px;
+}
+
+.ny-root .ny-brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid var(--ny-border);
+  border-radius: 10px;
+  color: var(--ny-warning);
+  background: var(--ny-warning-soft);
+}
+
+.ny-root .ny-brand-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ny-root .ny-brand-copy h1 {
+  margin: 0;
+  color: var(--ny-text);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.ny-root .ny-brand-copy > span {
+  color: var(--ny-muted);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.ny-root .ny-header-tools {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ny-root .ny-view-switch {
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--ny-border);
+  border-radius: 9px;
+  background: var(--ny-raised);
+}
+
+.ny-root .ny-view-switch button {
+  min-width: 50px;
+}
+
+.ny-root .ny-header-actions {
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ny-root .ny-cross-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--ny-warning-soft);
+  border-radius: 10px;
+  color: var(--ny-warning);
+  background: var(--ny-warning-soft);
+  overflow-x: auto;
+}
+
+.ny-root .ny-cross-copy {
+  flex: 0 0 auto;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.ny-root .ny-cross-banner button {
+  flex: 0 0 auto;
+  max-width: 190px;
+  color: var(--ny-text);
+}
+
+.ny-root .ny-error {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--ny-border);
+  color: var(--ny-danger);
+  background: var(--ny-danger-soft);
+  font-size: 12px;
+}
+
+.ny-root .ny-error > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px 20px;
+  scrollbar-color: var(--ny-muted) transparent;
+  scrollbar-width: thin;
+}
+
+.ny-root .ny-loading,
+.ny-root .ny-empty-state {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 180px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 28px 22px;
+  color: var(--ny-muted);
+  text-align: center;
+}
+
+.ny-root .ny-empty-state {
+  min-height: 240px;
+}
+
+.ny-root .ny-empty-mark {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid var(--ny-border);
+  border-radius: 14px;
+  color: var(--text-success, #3c9b70);
+  background: var(--ny-raised);
+}
+
+.ny-root .ny-empty-state h2 {
+  margin: 3px 0 0;
+  color: var(--ny-text);
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.ny-root .ny-empty-state p,
+.ny-root .ny-empty {
+  margin: 0;
+  color: var(--ny-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.ny-root .ny-stepper {
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ny-root .ny-step-count {
+  color: var(--ny-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ny-root .ny-item-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ny-root .ny-item-tags {
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.ny-root .ny-tag {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border: 1px solid var(--ny-border);
+  border-radius: 999px;
+  color: var(--ny-muted);
+  background: var(--ny-raised);
+  font-size: 10px;
+  font-weight: 650;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.ny-root .ny-tag--blocking {
+  border-color: var(--ny-danger-soft);
+  color: var(--ny-danger);
+  background: var(--ny-danger-soft);
+}
+
+.ny-root .ny-tag--normal {
+  border-color: var(--ny-warning-soft);
+  color: var(--ny-warning);
+  background: var(--ny-warning-soft);
+}
+
+.ny-root .ny-tag--low,
+.ny-root .ny-tag--kind,
+.ny-root .ny-tag--agent {
+  color: var(--ny-muted);
+}
+
+.ny-root .ny-tag--auto {
+  color: var(--text-interactive, #5898d4);
+  background: var(--surface-interactive, rgba(75, 137, 199, 0.12));
+}
+
+.ny-root .ny-item-title {
+  margin: 0;
+  color: var(--ny-text);
+  font-size: 20px;
+  font-weight: 720;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-summary {
+  margin: -4px 0 0;
+  color: var(--text-weak, #b5b5b5);
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-impact,
+.ny-root .ny-default-action {
+  padding: 10px 12px;
+  border: 1px solid var(--ny-border);
+  border-radius: 10px;
+  background: var(--ny-raised);
+}
+
+.ny-root .ny-impact {
+  border-color: var(--ny-warning-soft);
+  background: var(--ny-warning-soft);
+}
+
+.ny-root .ny-impact strong,
+.ny-root .ny-default-action strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ny-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.ny-root .ny-impact p,
+.ny-root .ny-default-action p {
+  margin: 0;
+  color: var(--text-base, #ededed);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-irreversible {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid var(--ny-danger-soft);
+  border-radius: 10px;
+  color: var(--ny-danger);
+  background: var(--ny-danger-soft);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.45;
+}
+
+.ny-root .ny-irreversible svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+.ny-root .ny-details,
+.ny-root .ny-checked,
+.ny-root .ny-closed-viewer {
+  border: 1px solid var(--ny-border);
+  border-radius: 10px;
+  background: var(--ny-raised);
+}
+
+.ny-root .ny-details > summary,
+.ny-root .ny-checked > summary,
+.ny-root .ny-closed-viewer > summary {
+  padding: 9px 11px;
+  color: var(--ny-muted);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  list-style-position: inside;
+}
+
+.ny-root .ny-details[open] > summary,
+.ny-root .ny-checked[open] > summary,
+.ny-root .ny-closed-viewer[open] > summary {
+  border-bottom: 1px solid var(--ny-border);
+}
+
+.ny-root .ny-details .ny-markdown {
+  padding: 0 11px 10px;
+}
+
+.ny-root .ny-answer-area {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding-top: 2px;
+}
+
+.ny-root .ny-section-heading {
+  margin: 0;
+  color: var(--ny-text);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ny-root .ny-option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ny-root .ny-option {
+  display: grid !important;
+  grid-template-columns: 23px minmax(0, 1fr);
+  width: 100%;
+  min-height: 40px;
+  justify-content: start;
+  text-align: left;
+}
+
+.ny-root .ny-option-number {
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--ny-border);
+  border-radius: 6px;
+  color: var(--ny-muted);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ny-root .ny-option-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-risk-mark {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
+
+.ny-root .ny-recommended-mark {
+  flex: 0 0 auto;
+  font-size: 12px;
+}
+
+.ny-root .ny-custom-answer {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-top: 2px;
+}
+
+.ny-root .ny-custom-answer > :first-child,
+.ny-root .ny-chat-composer > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ny-root .ny-closing-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0;
+  padding: 10px 11px;
+  border: 1px solid var(--ny-warning-soft);
+  border-radius: 10px;
+  color: var(--ny-warning);
+  background: var(--ny-warning-soft);
+}
+
+.ny-root .ny-closing-banner > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ny-root .ny-closing-banner strong {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ny-root .ny-closing-banner span {
+  overflow: hidden;
+  color: var(--ny-text);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ny-root .ny-discuss {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ny-border);
+}
+
+.ny-root .ny-discuss-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--ny-muted);
+}
+
+.ny-root .ny-discuss-heading p {
+  margin: 4px 0 0;
+  color: var(--ny-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.ny-root .ny-starters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ny-root .ny-starter {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+
+.ny-root .ny-chat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ny-root .ny-message,
+.ny-root .ny-sent-card {
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--ny-border);
+  border-radius: 11px;
+  background: var(--ny-raised);
+}
+
+.ny-root .ny-message--you {
+  border-color: var(--ny-warning-soft);
+  background: color-mix(in srgb, var(--ny-warning-soft) 58%, var(--ny-raised));
+}
+
+.ny-root .ny-message-meta {
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ny-muted);
+  font-size: 10px;
+}
+
+.ny-root .ny-message-meta strong {
+  color: var(--ny-text);
+  font-size: 11px;
+}
+
+.ny-root .ny-outbox-status {
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--ny-surface);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.ny-root .ny-outbox-status--failed {
+  color: var(--ny-danger);
+}
+
+.ny-root .ny-outbox-status--thinking {
+  color: var(--text-interactive, #5898d4);
+}
+
+.ny-root .ny-message-text,
+.ny-root .ny-sent-card p {
+  margin: 7px 0 0;
+  color: var(--ny-text);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.ny-root .ny-live-activity {
+  gap: 7px;
+  margin-top: 8px;
+  color: var(--text-interactive, #5898d4);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-message-error {
+  margin: 6px 0 0;
+  color: var(--ny-danger);
+  font-size: 11px;
+}
+
+.ny-root .ny-message-actions {
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.ny-root .ny-checked {
+  margin-top: 9px;
+}
+
+.ny-root .ny-checked > summary {
+  padding: 7px 9px;
+  font-size: 10px;
+}
+
+.ny-root .ny-checked ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 8px 12px 9px 27px;
+  color: var(--ny-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ny-root .ny-sent-card {
+  border-color: var(--border-success-base, rgba(60, 155, 112, 0.28));
+  background: var(--surface-success, rgba(60, 155, 112, 0.1));
+}
+
+.ny-root .ny-sent-heading {
+  gap: 6px;
+  color: var(--text-success, #3c9b70);
+  font-size: 11px;
+}
+
+.ny-root .ny-sent-title {
+  display: block;
+  margin-top: 7px;
+  color: var(--ny-text);
+  font-size: 12px;
+}
+
+.ny-root .ny-sent-meta {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--ny-muted);
+  font-size: 10px;
+}
+
+.ny-root .ny-sent-meta span + span::before {
+  content: "·";
+  margin-right: 6px;
+}
+
+.ny-root .ny-chat-composer {
+  position: sticky;
+  bottom: -20px;
+  gap: 7px;
+  margin: 2px -16px -20px;
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--ny-border);
+  background: var(--ny-surface);
+}
+
+.ny-root .ny-inbox {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ny-root .ny-inbox-toolbar {
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--ny-muted);
+  font-size: 11px;
+}
+
+.ny-root .ny-urgency-group {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ny-root .ny-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  color: var(--ny-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ny-root .ny-group-heading--blocking {
+  color: var(--ny-danger);
+}
+
+.ny-root .ny-group-heading--normal {
+  color: var(--ny-warning);
+}
+
+.ny-root .ny-group-heading > span {
+  font-variant-numeric: tabular-nums;
+}
+
+.ny-root .ny-inbox-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ny-root .ny-inbox-card {
+  display: flex !important;
+  width: 100%;
+  min-height: 0;
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: 6px;
+  padding: 10px 11px !important;
+  text-align: left;
+}
+
+.ny-root .ny-inbox-card-top {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ny-root .ny-inbox-kind,
+.ny-root .ny-inbox-origin {
+  color: var(--ny-muted);
+  font-size: 10px;
+}
+
+.ny-root .ny-inbox-card > strong {
+  color: var(--ny-text);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-inbox-summary {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--ny-muted);
+  font-size: 11px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.ny-root .ny-closed-viewer {
+  overflow: hidden;
+}
+
+.ny-root .ny-closed-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.ny-root .ny-closed-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 5px 8px;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--ny-border);
+}
+
+.ny-root .ny-closed-item:last-child {
+  border-bottom: 0;
+}
+
+.ny-root .ny-closed-item > strong {
+  min-width: 0;
+  color: var(--ny-text);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.ny-root .ny-closed-status {
+  color: var(--ny-muted);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.ny-root .ny-closed-status--answered {
+  color: var(--text-success, #3c9b70);
+}
+
+.ny-root .ny-closed-status--withdrawn {
+  color: var(--ny-muted);
+}
+
+.ny-root .ny-closed-item p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ny-muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.ny-root .ny-other-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ny-root .ny-other-session {
+  display: flex !important;
+  width: 100%;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.ny-root .ny-other-session-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ny-root .ny-other-session-copy strong {
+  overflow: hidden;
+  color: var(--ny-text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ny-root .ny-other-session-copy > span,
+.ny-root .ny-other-blocking {
+  color: var(--ny-muted);
+  font-size: 10px;
+}
+
+.ny-root .ny-other-blocking {
+  color: var(--ny-danger);
+}
+
+.ny-root button:focus-visible,
+.ny-root summary:focus-visible,
+.ny-root input:focus-visible {
+  outline: 2px solid var(--text-interactive, #5898d4);
+  outline-offset: 2px;
+}
+
+.ny-root ::selection {
+  color: var(--text-base, #ededed);
+  background: var(--surface-interactive, rgba(75, 137, 199, 0.26));
+}
+
+@media (max-width: 520px) {
+  .ny-root .ny-header {
+    padding: 12px 12px 10px;
+  }
+
+  .ny-root .ny-header-top {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .ny-root .ny-header-tools {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .ny-root .ny-content {
+    padding: 12px 12px 18px;
+  }
+
+  .ny-root .ny-cross-banner {
+    margin-right: -3px;
+  }
+
+  .ny-root .ny-item-title {
+    font-size: 18px;
+  }
+
+  .ny-root .ny-chat-composer {
+    bottom: -18px;
+    margin-right: -12px;
+    margin-left: -12px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ny-root *,
+  .ny-root *::before,
+  .ny-root *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

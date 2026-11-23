@@ -1,0 +1,58 @@
+{
+  "name": "opencode-attention",
+  "version": "0.1.0",
+  "description": "Attention queue, silent acknowledgments, and isolated read-only DISCUSS side-chat plugin for OpenCode V2 (Server, TUI, and Desktop GUI).",
+  "license": "MIT",
+  "author": "0x4nur4g",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/0x4nur4g/opencode-attention.git"
+  },
+  "keywords": [
+    "opencode",
+    "opencode-plugin",
+    "attention",
+    "decision-queue",
+    "tui",
+    "ai-agent"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tui": "./src/tui.tsx",
+    "./rpc": "./src/rpc.ts",
+    "./gui-experimental": "./dist/gui-experimental.cjs"
+  },
+  "files": [
+    "src",
+    "dist/gui-experimental.cjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build:gui": "vite build",
+    "build": "bun run build:gui",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "prepublishOnly": "bun run typecheck && bun test && bun run build"
+  },
+  "dependencies": {
+    "@opencode/plugin": "2.4.0"
+  },
+  "peerDependencies": {
+    "@opentui/core": ">=0.9.4",
+    "@opentui/solid": ">=0.9.4",
+    "solid-js": ">=1.9.0"
+  },
+  "devDependencies": {
+    "@opencode/theme": "2.4.0",
+    "@opentui/core": "0.9.7",
+    "@opentui/solid": "0.9.7",
+    "@types/bun": "^1.3.0",
+    "@types/node": "^22.0.0",
+    "solid-js": "^1.9.9",
+    "typescript": "^5.7.0",
+    "vite": "^7.0.0",
+    "vite-plugin-solid": "^2.11.0"
+  }
+}
