@@ -84,22 +84,25 @@ Model specs use `"provider/model"` or `"provider/model#variant"`. When `discuss.
 ## Controls
 
 ### TUI (`./tui`)
-- **`/attention`** (or `/attn`, or `<leader>d` / `ctrl+x d`): open/toggle the side panel.
-- Inside the panel (when the DISCUSS input is not focused):
-  - `1`–`9`: pick an option
-  - `a`: silent Acknowledge (`ack` items)
+- **`/attention`** (or `/attn`, or `<leader>d` / `ctrl+x d`): open, focus, or close the side panel.
+- Click anywhere in the panel to focus it; click the DISCUSS input bar to type; hover any button/option/row for visual feedback; drag-select card or chat text freely without accidentally triggering buttons.
+- Inside the panel (when DISCUSS input is not focused):
+  - `1`–`9`: pick an option (risky `(!)` / irreversible approval choices ask a quick confirmation)
+  - `a` or `Enter` (on `ack` items): silent Acknowledge
   - `t`: custom answer / override comment (wakes agent)
   - `e`: Explain simply (read-only DISCUSS)
   - `s`: Snooze / defer to back of queue
-  - `p` / `n`: Previous / Next open item
+  - `p` / `n` or `←` / `→`: Previous / Next open item
+  - `j` / `k` or `↑` / `↓` (and `PageUp` / `PageDown`): scroll card & DISCUSS thread (in Inbox view: move selection cursor + `Enter` to open)
   - `i`: toggle Inbox / Focus view
   - `Shift+A`: Batch-Ack all safe `ack` items
   - `d`: toggle full details
-  - `c`: focus DISCUSS chat input (`Esc` blurs back to hotkeys)
+  - `c` or `Tab`: focus DISCUSS chat input (`Esc` or `Tab` exits back to hotkeys without interrupting the main session)
   - `u`: Undo pending chat close
   - `r`: Retry failed DISCUSS reply
   - `x`: Cancel in-flight DISCUSS run
   - `f`: toggle fullscreen
+  - `Esc`: step back (DISCUSS input → closed view → Inbox → close panel)
 
 ### Desktop GUI (`./gui-experimental`)
 - Pinned **Attention** side panel tab + floating **ComposerPill** badge above the prompt whenever items are waiting.
