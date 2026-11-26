@@ -30,6 +30,8 @@ interface UIState {
   chatInput: Record<string, string>
   inputFocused: Record<string, boolean>
   panelFocused: Record<string, boolean>
+  /** True ONLY after the user explicitly clicks inside the panel; prevents automatic focus stealing. */
+  keyboardArmed: Record<string, boolean>
   now: number
 }
 
@@ -294,6 +296,7 @@ export default Plugin.define({
       chatInput: {},
       inputFocused: {},
       panelFocused: {},
+      keyboardArmed: {},
       now: Date.now(),
     })
     const [dialogOpen, setDialogOpen] = createSignal(false)
@@ -307,7 +310,7 @@ export default Plugin.define({
     const scrollRefs = new Map<string, ScrollBoxRenderable>()
     const panelInputs = new Map<string, PanelInput>()
     const slotCleanups: Array<() => void> = []
-    let pendingFocusOnOpen = false
+    const restoreTimers = new Set<ReturnType<typeof setTimeout>>()
     let ticker: ReturnType<typeof setInterval> | undefined
     let disposed = false
 
@@ -348,7 +351,8 @@ export default Plugin.define({
       if (state.inputFocused[sessionID]) setState("inputFocused", sessionID, false)
     }
 
-    const focusPanel = (sessionID: string, keepInput = false): void => {
+    const armPanelOnClick = (sessionID: string, keepInput = false): void => {
+      setState("keyboardArmed", sessionID, true)
       const panel = panelInputs.get(sessionID)
       if (panel && !panel.focused) panel.focus()
       if (!keepInput) blurChatInput(sessionID)
@@ -356,6 +360,7 @@ export default Plugin.define({
 
     const focusChatInput = (sessionID: string): void => {
       pendingInputFocus.add(sessionID)
+      setState("keyboardArmed", sessionID, true)
       const panel = panelInputs.get(sessionID)
       if (panel && !panel.focused) panel.focus()
       const input = inputRefs.get(sessionID)
@@ -369,6 +374,36 @@ export default Plugin.define({
         if (latest && !latest.focused) latest.focus()
         if (!state.inputFocused[sessionID]) setState("inputFocused", sessionID, true)
       })
+    }
+
+    /**
+     * Opens the Attention panel WITHOUT taking keyboard focus away from the main prompt.
+     * Focus enters the panel only when the user explicitly clicks inside it.
+     */
+    const openPanelWithoutStealingFocus = (sessionID: string): void => {
+      if (context.ui.panel.current()?.name === PANEL_NAME) return
+      const prev = context.renderer.currentFocusedRenderable
+      setState("keyboardArmed", sessionID, false)
+      context.ui.panel.open(PANEL_NAME)
+      if (!prev || prev.isDestroyed) return
+      const restore = () => {
+        if (
+          disposed ||
+          prev.isDestroyed ||
+          state.keyboardArmed[sessionID] === true ||
+          pendingInputFocus.has(sessionID)
+        ) {
+          return
+        }
+        prev.focus()
+      }
+      restore()
+      queueMicrotask(restore)
+      const timer = setTimeout(() => {
+        restoreTimers.delete(timer)
+        restore()
+      }, 30)
+      restoreTimers.add(timer)
     }
 
     const scrollPanelTop = (sessionID: string): void => {
@@ -432,11 +467,7 @@ export default Plugin.define({
           onMouseDown={(event: MouseEvent) => {
             if (props.disabled || event.button !== 0) return
             event.stopPropagation()
-            // Clicking a panel button works with the mouse WITHOUT stealing keyboard focus
-            // away from the main chat prompt; only blur our own DISCUSS input if it was active.
-            if (props.sessionID && state.inputFocused[props.sessionID]) {
-              blurChatInput(props.sessionID)
-            }
+            if (props.sessionID) armPanelOnClick(props.sessionID)
             setPressed(true)
           }}
           onMouseUp={(event: MouseEvent) => {
@@ -529,15 +560,11 @@ export default Plugin.define({
       return route.type === "session" ? route.sessionID : undefined
     }
 
-    const openPanel = (toggle = false, focus = true): void => {
+    const openPanel = (toggle = false): void => {
       const panel = context.ui.panel.current()
       const sid = routedSessionID()
       if (toggle && panel?.name === PANEL_NAME) {
-        // If panel is open but NOT focused, focus it first instead of closing unexpectedly!
-        if (focus && state.panelFocused[panel.sessionID] !== true) {
-          focusPanel(panel.sessionID)
-          return
-        }
+        setState("keyboardArmed", panel.sessionID, false)
         context.ui.panel.close()
         return
       }
@@ -545,9 +572,7 @@ export default Plugin.define({
         showToast("Open a session to view its attention queue.", "warning")
         return
       }
-      pendingFocusOnOpen = focus
-      context.ui.panel.open(PANEL_NAME)
-      if (focus) focusPanel(sid)
+      openPanelWithoutStealingFocus(sid)
     }
 
     const focusItem = (sessionID: string, itemID: string): void => {
@@ -626,7 +651,6 @@ export default Plugin.define({
           if (confirmed !== true) return
         } finally {
           setDialogOpen(false)
-          focusPanel(sessionID)
         }
       }
       const result = await requestOk(sessionID, "Answer", () =>
@@ -661,7 +685,6 @@ export default Plugin.define({
         if (answer?.trim()) void answerItem(sessionID, item, answer.trim(), true)
       } finally {
         setDialogOpen(false)
-        focusPanel(sessionID)
       }
     }
 
@@ -793,9 +816,8 @@ export default Plugin.define({
     }
 
     const jumpToSession = (sessionID: string): void => {
-      pendingFocusOnOpen = true
       context.ui.router.navigate({ type: "session", sessionID })
-      context.ui.panel.open(PANEL_NAME)
+      openPanelWithoutStealingFocus(sessionID)
     }
 
     // Global command only: /attention, /attn, command palette, <leader>d
@@ -806,12 +828,12 @@ export default Plugin.define({
         {
           id: "attention.open",
           title: "Open Attention",
-          description: "Open, focus, or close the Attention panel for this session.",
+          description: "Open or close the Attention panel for this session.",
           group: "Attention",
           slash: { name: "attention", aliases: ["attn"] },
           palette: true,
           bind: "<leader>d",
-          run: () => openPanel(true, true),
+          run: () => openPanel(true),
         },
       ],
     }))
@@ -821,16 +843,13 @@ export default Plugin.define({
       const snapshot = (): SessionSnapshot | undefined => state.snapshots[sessionID()]
       const isInbox = (): boolean => state.viewMode[sessionID()] === "inbox"
       const isInputFocused = (): boolean => state.inputFocused[sessionID()] === true
+      const isArmed = (): boolean => state.keyboardArmed[sessionID()] === true && props.panel.focused
 
       createEffect(() => {
         const sid = sessionID()
         panelInputs.set(sid, props.panel)
         setState("panelFocused", sid, props.panel.focused)
         if (!state.snapshots[sid]) ensureSnapshot(sid)
-        if (pendingFocusOnOpen) {
-          pendingFocusOnOpen = false
-          if (!props.panel.focused) props.panel.focus()
-        }
         if (props.panel.focused && pendingInputFocus.has(sid)) {
           queueMicrotask(() => {
             if (disposed || !pendingInputFocus.delete(sid)) return
@@ -838,11 +857,15 @@ export default Plugin.define({
             if (latest && !latest.focused) latest.focus()
           })
         }
-        // When user clicks/tabs away from the panel, blur the chat input cleanly
-        if (!props.panel.focused && !pendingInputFocus.has(sid)) blurChatInput(sid)
+        // When focus leaves the panel (e.g. user clicked main chat), disarm panel shortcuts & blur DISCUSS input
+        if (!props.panel.focused && !pendingInputFocus.has(sid)) {
+          if (state.keyboardArmed[sid]) setState("keyboardArmed", sid, false)
+          blurChatInput(sid)
+        }
         onCleanup(() => {
           if (panelInputs.get(sid) === props.panel) panelInputs.delete(sid)
           setState("panelFocused", sid, false)
+          setState("keyboardArmed", sid, false)
         })
       })
 
@@ -886,14 +909,15 @@ export default Plugin.define({
           }
           return
         }
+        setState("keyboardArmed", sid, false)
         props.panel.close()
       }
 
       // Synchronous runtime guard checked on EVERY keypress inside `run()`:
-      // Returning `false` hands the key straight back to OpenCode so typing in ANY text field
-      // (main chat prompt, DISCUSS input, or dialog) can NEVER trigger a panel shortcut!
+      // Shortcuts ONLY run after the user explicitly clicked the panel (`isArmed()`),
+      // and return `false` whenever ANY text input/textarea anywhere has focus!
       const allowPanelKey = (event?: { ctrl?: boolean; meta?: boolean; option?: boolean }): boolean => {
-        if (!props.panel.focused || isInputFocused() || dialogOpen()) return false
+        if (!isArmed() || isInputFocused() || dialogOpen()) return false
         if (event && (event.ctrl || event.meta || event.option)) return false
         if (isEditableRenderable(context.renderer.currentFocusedRenderable)) return false
         return true
@@ -1126,7 +1150,7 @@ export default Plugin.define({
 
       const panelCmds = buildCommands()
       context.keymap.layer(() => ({
-        enabled: () => props.panel.focused && !isInputFocused() && !dialogOpen(),
+        enabled: () => isArmed() && !isInputFocused() && !dialogOpen(),
         bindings: panelCmds.map((c) => c.id).filter((id): id is string => id !== undefined),
         commands: panelCmds,
       }))
@@ -1175,23 +1199,18 @@ export default Plugin.define({
           padding={1}
           backgroundColor={theme.background.raised.base}
           border
-          borderColor={props.panel.focused ? theme.text.feedback.info.base : theme.border.base}
+          borderColor={isArmed() ? theme.text.feedback.info.base : theme.border.base}
           onMouseDown={(event: MouseEvent) => {
-            // Do NOT steal keyboard focus away from the main chat prompt when the user clicks/selects in the panel;
-            // only blur our own DISCUSS input if it was active.
-            if (event.button === 0 && state.inputFocused[sessionID()]) {
-              blurChatInput(sessionID())
-            }
+            if (event.button === 0) armPanelOnClick(sessionID())
           }}
         >
           {/* Fixed Header Row */}
           <box flexDirection="row" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
             <box flexDirection="row" alignItems="center" gap={1} flexWrap="wrap">
-              {chipButton("ATTENTION", () => focusPanel(sessionID()), {
-                color: props.panel.focused ? theme.text.feedback.info.base : theme.text.base,
-                bold: true,
-              })}
-              <Show when={props.panel.focused && !isInputFocused()}>
+              <text selectable={false} fg={isArmed() ? theme.text.feedback.info.base : theme.text.base}>
+                <strong>ATTENTION</strong>
+              </text>
+              <Show when={isArmed() && !isInputFocused()}>
                 <text selectable={false} fg={theme.text.feedback.info.base}>
                   <strong>[KEYS]</strong>
                 </text>
@@ -1214,7 +1233,10 @@ export default Plugin.define({
                 { sessionID: sessionID(), color: theme.text.feedback.info.base },
               )}
               {chipButton("[f]", props.panel.toggleFullscreen, { sessionID: sessionID(), color: theme.text.muted })}
-              {chipButton("[×]", props.panel.close, { sessionID: sessionID(), color: theme.text.muted })}
+              {chipButton("[×]", () => {
+                setState("keyboardArmed", sessionID(), false)
+                props.panel.close()
+              }, { color: theme.text.muted })}
             </box>
           </box>
 
@@ -2011,7 +2033,7 @@ export default Plugin.define({
               <Clickable
                 paddingX={props.sidebar ? 1 : 0}
                 hoverBg={theme.background.raised.high}
-                onActivate={() => openPanel(false, false)}
+                onActivate={() => openPanel(false)}
               >
                 {props.sidebar ? (
                   <text
@@ -2085,9 +2107,8 @@ export default Plugin.define({
         if (change.itemID && (!currentFocused || (change.urgency === "blocking" && currentFocused.urgency !== "blocking"))) {
           focusItem(change.sessionID, change.itemID)
         }
-        // Passive arrival opens the panel WITHOUT stealing keyboard focus from main prompt
-        pendingFocusOnOpen = false
-        context.ui.panel.open(PANEL_NAME)
+        // Passive arrival opens the panel WITHOUT stealing focus from the main prompt
+        openPanelWithoutStealingFocus(change.sessionID)
       }
     })
 
@@ -2111,6 +2132,8 @@ export default Plugin.define({
       unsubscribePluginUpdated()
       unsubscribeChanged()
       for (const cleanup of slotCleanups) cleanup()
+      for (const timer of restoreTimers) clearTimeout(timer)
+      restoreTimers.clear()
       if (ticker !== undefined) clearInterval(ticker)
       ticker = undefined
       inFlightSnapshots.clear()
