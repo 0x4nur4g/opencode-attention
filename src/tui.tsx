@@ -265,6 +265,20 @@ const errorMessage = (error: unknown): string => {
 const trimText = (text: string, max: number): string =>
   text.length > max ? `${text.slice(0, max - 1)}…` : text
 
+/**
+ * Cross-realm check for whether an OpenTUI renderable is any editable text field
+ * (main OpenCode composer Textarea, DISCUSS Input, dialog Input, command palette search).
+ */
+function isEditableRenderable(renderable: unknown): boolean {
+  if (!renderable || typeof renderable !== "object") return false
+  const r = renderable as Record<string, unknown>
+  if (typeof r.insertText === "function" || r.editBuffer !== undefined || r.editorView !== undefined) {
+    return true
+  }
+  const ctorName = (r.constructor as { name?: string } | undefined)?.name ?? ""
+  return /input|textarea|edit/i.test(ctorName)
+}
+
 export default Plugin.define({
   id: "attention.tui",
   setup(context) {
@@ -289,6 +303,7 @@ export default Plugin.define({
     const inFlightSnapshots = new Map<string, Promise<void>>()
     const locationsBySession = new Map<string, { directory: string; workspaceID?: string }>()
     const inputRefs = new Map<string, InputRenderable>()
+    const pendingInputFocus = new Set<string>()
     const scrollRefs = new Map<string, ScrollBoxRenderable>()
     const panelInputs = new Map<string, PanelInput>()
     const slotCleanups: Array<() => void> = []
@@ -327,6 +342,7 @@ export default Plugin.define({
     })
 
     const blurChatInput = (sessionID: string): void => {
+      pendingInputFocus.delete(sessionID)
       const input = inputRefs.get(sessionID)
       if (input?.focused) input.blur()
       if (state.inputFocused[sessionID]) setState("inputFocused", sessionID, false)
@@ -339,10 +355,20 @@ export default Plugin.define({
     }
 
     const focusChatInput = (sessionID: string): void => {
-      focusPanel(sessionID, true)
+      pendingInputFocus.add(sessionID)
+      const panel = panelInputs.get(sessionID)
+      if (panel && !panel.focused) panel.focus()
       const input = inputRefs.get(sessionID)
       if (input && !input.focused) input.focus()
       setState("inputFocused", sessionID, true)
+      // Re-assert input focus once after microtask in case host panel.focus() moves focus to the panel wrapper
+      queueMicrotask(() => {
+        const stillWanted = pendingInputFocus.delete(sessionID)
+        if (disposed || !stillWanted) return
+        const latest = inputRefs.get(sessionID)
+        if (latest && !latest.focused) latest.focus()
+        if (!state.inputFocused[sessionID]) setState("inputFocused", sessionID, true)
+      })
     }
 
     const scrollPanelTop = (sessionID: string): void => {
@@ -406,7 +432,11 @@ export default Plugin.define({
           onMouseDown={(event: MouseEvent) => {
             if (props.disabled || event.button !== 0) return
             event.stopPropagation()
-            if (props.sessionID) focusPanel(props.sessionID)
+            // Clicking a panel button works with the mouse WITHOUT stealing keyboard focus
+            // away from the main chat prompt; only blur our own DISCUSS input if it was active.
+            if (props.sessionID && state.inputFocused[props.sessionID]) {
+              blurChatInput(props.sessionID)
+            }
             setPressed(true)
           }}
           onMouseUp={(event: MouseEvent) => {
@@ -671,7 +701,12 @@ export default Plugin.define({
 
     const sendExplainSimply = (sessionID: string): void => {
       const item = selectedOpenItem(sessionID)
-      if (item) void sendChat(sessionID, item.id, STARTER_PROMPTS[0], true)
+      if (!item) return
+      const alreadyThinking = state.snapshots[sessionID]?.chat.some(
+        (m) => m.kind === "you" && m.itemID === item.id && (m.status === "queued" || m.status === "thinking"),
+      )
+      if (alreadyThinking) return
+      void sendChat(sessionID, item.id, STARTER_PROMPTS[0], true)
     }
 
     const retryMessage = (sessionID: string, messageID: string): void => {
@@ -796,8 +831,15 @@ export default Plugin.define({
           pendingFocusOnOpen = false
           if (!props.panel.focused) props.panel.focus()
         }
+        if (props.panel.focused && pendingInputFocus.has(sid)) {
+          queueMicrotask(() => {
+            if (disposed || !pendingInputFocus.delete(sid)) return
+            const latest = inputRefs.get(sid)
+            if (latest && !latest.focused) latest.focus()
+          })
+        }
         // When user clicks/tabs away from the panel, blur the chat input cleanly
-        if (!props.panel.focused) blurChatInput(sid)
+        if (!props.panel.focused && !pendingInputFocus.has(sid)) blurChatInput(sid)
         onCleanup(() => {
           if (panelInputs.get(sid) === props.panel) panelInputs.delete(sid)
           setState("panelFocused", sid, false)
@@ -847,6 +889,23 @@ export default Plugin.define({
         props.panel.close()
       }
 
+      // Synchronous runtime guard checked on EVERY keypress inside `run()`:
+      // Returning `false` hands the key straight back to OpenCode so typing in ANY text field
+      // (main chat prompt, DISCUSS input, or dialog) can NEVER trigger a panel shortcut!
+      const allowPanelKey = (event?: { ctrl?: boolean; meta?: boolean; option?: boolean }): boolean => {
+        if (!props.panel.focused || isInputFocused() || dialogOpen()) return false
+        if (event && (event.ctrl || event.meta || event.option)) return false
+        if (isEditableRenderable(context.renderer.currentFocusedRenderable)) return false
+        return true
+      }
+
+      const guardKey =
+        (action: () => void | false): KeymapCommand["run"] =>
+        (_input, event) => {
+          if (!allowPanelKey(event)) return false
+          return action()
+        }
+
       // Panel-scoped keymap: NO `mode: "global"`, so dialogs & command palette never get hijacked!
       const buildCommands = (): KeymapCommand[] => {
         const cmds: KeymapCommand[] = [
@@ -855,62 +914,62 @@ export default Plugin.define({
             title: "Back / Close panel",
             group: "Attention",
             bind: "escape",
-            run: handleEscape,
+            run: guardKey(handleEscape),
           },
           {
             id: "attention.view",
             title: "Toggle Inbox / Focus",
             group: "Attention",
             bind: "i",
-            run: () => toggleView(sessionID()),
+            run: guardKey(() => toggleView(sessionID())),
           },
           {
             id: "attention.fullscreen",
             title: "Toggle fullscreen",
             group: "Attention",
             bind: "f",
-            run: () => props.panel.toggleFullscreen(),
+            run: guardKey(() => props.panel.toggleFullscreen()),
           },
           {
             id: "attention.down",
             title: "Scroll down / Next row",
             group: "Attention",
             bind: "j,down",
-            run: () => {
+            run: guardKey(() => {
               if (isInbox()) moveInboxCursor(1)
               else scrollPanelBy(sessionID(), 3)
-            },
+            }),
           },
           {
             id: "attention.up",
             title: "Scroll up / Previous row",
             group: "Attention",
             bind: "k,up",
-            run: () => {
+            run: guardKey(() => {
               if (isInbox()) moveInboxCursor(-1)
               else scrollPanelBy(sessionID(), -3)
-            },
+            }),
           },
           {
             id: "attention.page-down",
             title: "Page down",
             group: "Attention",
             bind: "pagedown",
-            run: () => scrollPanelBy(sessionID(), 10),
+            run: guardKey(() => scrollPanelBy(sessionID(), 10)),
           },
           {
             id: "attention.page-up",
             title: "Page up",
             group: "Attention",
             bind: "pageup",
-            run: () => scrollPanelBy(sessionID(), -10),
+            run: guardKey(() => scrollPanelBy(sessionID(), -10)),
           },
           {
             id: "attention.enter",
             title: "Select / Acknowledge",
             group: "Attention",
             bind: "return",
-            run: () => {
+            run: guardKey(() => {
               const sid = sessionID()
               if (isInbox()) {
                 const entries = inboxEntriesFor(snapshot())
@@ -919,114 +978,133 @@ export default Plugin.define({
               }
               const item = selectedOpenItem(sid)
               if (item?.kind === "ack") acknowledge(sid)
-            },
+              else return false
+            }),
           },
           {
             id: "attention.previous",
             title: "Previous open item",
             group: "Attention",
             bind: "p,left",
-            run: () => {
-              if (!isInbox()) moveFocus(sessionID(), -1)
-            },
+            run: guardKey(() => {
+              if (isInbox() || (snapshot()?.open.length ?? 0) === 0) return false
+              moveFocus(sessionID(), -1)
+            }),
           },
           {
             id: "attention.next",
             title: "Next open item",
             group: "Attention",
             bind: "n,right",
-            run: () => {
-              if (!isInbox()) moveFocus(sessionID(), 1)
-            },
+            run: guardKey(() => {
+              if (isInbox() || (snapshot()?.open.length ?? 0) === 0) return false
+              moveFocus(sessionID(), 1)
+            }),
           },
           {
             id: "attention.ack",
             title: "Acknowledge (silent)",
             group: "Attention",
             bind: "a",
-            run: () => {
-              if (!isInbox()) acknowledge(sessionID())
-            },
+            run: guardKey(() => {
+              const sid = sessionID()
+              if (isInbox() || selectedOpenItem(sid)?.kind !== "ack") return false
+              acknowledge(sid)
+            }),
           },
           {
             id: "attention.custom",
             title: "Custom / Override",
             group: "Attention",
             bind: "t",
-            run: () => {
-              if (!isInbox()) void customAnswer(sessionID())
-            },
+            run: guardKey(() => {
+              const sid = sessionID()
+              if (isInbox() || !selectedOpenItem(sid)?.allowCustom) return false
+              void customAnswer(sid)
+            }),
           },
           {
             id: "attention.explain",
             title: "Explain simply",
             group: "Attention",
             bind: "e",
-            run: () => {
-              if (!isInbox()) sendExplainSimply(sessionID())
-            },
+            run: guardKey(() => {
+              const sid = sessionID()
+              if (isInbox() || !selectedOpenItem(sid)) return false
+              sendExplainSimply(sid)
+            }),
           },
           {
             id: "attention.snooze",
             title: "Snooze item",
             group: "Attention",
             bind: "s",
-            run: () => {
-              if (isInbox()) return
+            run: guardKey(() => {
+              if (isInbox()) return false
               const sid = sessionID()
               const item = selectedOpenItem(sid)
-              if (item) void snoozeItem(sid, item.id)
-            },
+              if (!item) return false
+              void snoozeItem(sid, item.id)
+            }),
           },
           {
             id: "attention.details",
             title: "Toggle details",
             group: "Attention",
             bind: "d",
-            run: () => {
-              if (isInbox()) return
+            run: guardKey(() => {
+              if (isInbox()) return false
               const sid = sessionID()
               const item = selectedItem(sid)
-              if (item) toggleDetails(sid, item.id)
-            },
+              if (!item) return false
+              toggleDetails(sid, item.id)
+            }),
           },
           {
             id: "attention.chat",
             title: "Focus DISCUSS input",
             group: "Attention",
             bind: "c,tab",
-            run: () => {
+            run: guardKey(() => {
               const sid = sessionID()
-              if (!isInbox() && selectedOpenItem(sid)) focusChatInput(sid)
-            },
+              if (isInbox() || !selectedOpenItem(sid)) return false
+              focusChatInput(sid)
+            }),
           },
           {
             id: "attention.undo",
             title: "Undo pending close",
             group: "Attention",
             bind: "u",
-            run: () => undoClose(sessionID()),
+            run: guardKey(() => {
+              if (!snapshot()?.pendingClose) return false
+              undoClose(sessionID())
+            }),
           },
           {
             id: "attention.batch-ack",
             title: "Batch-ack safe FYIs",
             group: "Attention",
             bind: "shift+a",
-            run: () => void batchAck(sessionID()),
+            run: guardKey(() => {
+              const hasSafeAck = (snapshot()?.open ?? []).some((i) => i.kind === "ack" && i.reversible !== false)
+              if (!hasSafeAck) return false
+              void batchAck(sessionID())
+            }),
           },
           {
             id: "attention.retry-chat",
             title: "Retry failed reply",
             group: "Attention",
             bind: "r",
-            run: () => retryLatestFailed(sessionID()),
+            run: guardKey(() => retryLatestFailed(sessionID())),
           },
           {
             id: "attention.cancel-chat",
             title: "Cancel running reply",
             group: "Attention",
             bind: "x",
-            run: () => cancelLatestReply(sessionID()),
+            run: guardKey(() => cancelLatestReply(sessionID())),
           },
         ]
         for (let option = 1; option <= 9; option += 1) {
@@ -1036,9 +1114,11 @@ export default Plugin.define({
             title: `Choose option ${option}`,
             group: "Attention",
             bind: String(option),
-            run: () => {
-              if (!isInbox()) answerOption(sessionID(), index)
-            },
+            run: guardKey(() => {
+              const sid = sessionID()
+              if (isInbox() || !selectedOpenItem(sid)?.options[index]) return false
+              answerOption(sid, index)
+            }),
           })
         }
         return cmds
@@ -1097,15 +1177,25 @@ export default Plugin.define({
           border
           borderColor={props.panel.focused ? theme.text.feedback.info.base : theme.border.base}
           onMouseDown={(event: MouseEvent) => {
-            if (event.button === 0) focusPanel(sessionID())
+            // Do NOT steal keyboard focus away from the main chat prompt when the user clicks/selects in the panel;
+            // only blur our own DISCUSS input if it was active.
+            if (event.button === 0 && state.inputFocused[sessionID()]) {
+              blurChatInput(sessionID())
+            }
           }}
         >
           {/* Fixed Header Row */}
           <box flexDirection="row" alignItems="center" justifyContent="space-between" gap={1} flexWrap="wrap">
             <box flexDirection="row" alignItems="center" gap={1} flexWrap="wrap">
-              <text selectable={false} fg={props.panel.focused ? theme.text.feedback.info.base : theme.text.base}>
-                <strong>ATTENTION</strong>
-              </text>
+              {chipButton("ATTENTION", () => focusPanel(sessionID()), {
+                color: props.panel.focused ? theme.text.feedback.info.base : theme.text.base,
+                bold: true,
+              })}
+              <Show when={props.panel.focused && !isInputFocused()}>
+                <text selectable={false} fg={theme.text.feedback.info.base}>
+                  <strong>[KEYS]</strong>
+                </text>
+              </Show>
               <text selectable={false} fg={theme.text.muted}>
                 {openCount()} open
                 {otherCount() > 0 ? ` · +${otherCount()} other` : ""}
@@ -1921,7 +2011,7 @@ export default Plugin.define({
               <Clickable
                 paddingX={props.sidebar ? 1 : 0}
                 hoverBg={theme.background.raised.high}
-                onActivate={() => openPanel(false, true)}
+                onActivate={() => openPanel(false, false)}
               >
                 {props.sidebar ? (
                   <text
@@ -2025,6 +2115,7 @@ export default Plugin.define({
       ticker = undefined
       inFlightSnapshots.clear()
       inputRefs.clear()
+      pendingInputFocus.clear()
       scrollRefs.clear()
       panelInputs.clear()
     }
